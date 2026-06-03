@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Downloader.net</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080c0a;
+  --bg2:#0d120f;
+  --line:#1a2420;
+  --line2:#243028;
+  --text:#e8f5e8;
+  --muted:#4a6655;
+  --muted2:#2a3830;
+  --green:#00ff88;
+  --green2:#00cc66;
+  --green-dim:#00ff8822;
+  --green-glow:rgba(0,255,136,0.12);
+  --active-bg:#00ff88;
+  --active-text:#080c0a;
+  --ok:#00ff88;
+  --err:#ff4455;
+  --warn:#ffcc00;
+}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Space Grotesk',sans-serif;
+  min-height:100vh;
+  font-size:15px;
+  line-height:1.6;
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,0.015) 2px,rgba(0,255,136,0.015) 4px);
+  pointer-events:none;
+  z-index:0;
+  will-change:transform;
+  contain:strict;
+}
+
+/* ── HEADER ── */
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  height:58px;
+  border-bottom:1px solid var(--line);
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:var(--bg);
+}
+.logo{
+  font-family:'Space Mono',monospace;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:0.04em;
+  color:var(--green);
+  text-shadow:0 0 18px rgba(0,255,136,0.4);
+}
+.logo em{color:var(--muted);font-style:normal;font-weight:400;}
+
+/* ── STATUS INDICATOR ── */
+.status-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  animation:blink 2s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ── TABS ── */
+.tabs-wrap{
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;
+  scrollbar-width:none;
+  position:sticky;
+  top:58px;
+  z-index:19;
+  background:var(--bg);
+}
+.tabs-wrap::-webkit-scrollbar{display:none;}
+.tabs{
+  display:flex;
+  padding:0 12px;
+  width:max-content;
+  min-width:100%;
+}
+.tab{
+  padding:16px 16px 14px;
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  font-weight:400;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  color:var(--muted);
+  background:none;
+  border:none;
+  border-bottom:2px solid transparent;
+  cursor:pointer;
+  transition:color .15s, border-color .15s, text-shadow .15s;
+  white-space:nowrap;
+}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--green);border-bottom-color:var(--green);text-shadow:0 0 10px rgba(0,255,136,0.5);}
+
+/* ── MAIN ── */
+main{
+  max-width:640px;
+  margin:0 auto;
+  padding:32px 20px 80px;
+  position:relative;
+  z-index:1;
+}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* ── SECTION HEAD ── */
+.panel-head{
+  margin-bottom:28px;
+  padding-bottom:20px;
+  border-bottom:1px solid var(--line);
+}
+.panel-label{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:var(--green2);
+  margin-bottom:8px;
+  opacity:.7;
+}
+.panel-title{
+  font-size:26px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-0.01em;
+}
+
+/* ── MODE SWITCH ── */
+.mode-sw{
+  display:flex;
+  gap:0;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  overflow:hidden;
+  width:fit-content;
+  margin-bottom:20px;
+}
+.mode-sw button{
+  padding:9px 18px;
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  background:none;
+  border:none;
+  color:var(--muted);
+  cursor:pointer;
+  transition:all .15s;
+  border-right:1px solid var(--line2);
+}
+.mode-sw button:last-child{border-right:none;}
+.mode-sw button.active{background:var(--green);color:var(--bg);}
+
+/* ── INPUT ── */
+.input-row{display:flex;gap:8px;margin-bottom:10px;}
+.url-input{
+  flex:1;
+  background:var(--bg2);
+  border:1px solid var(--line2);
+  border-radius:6px;
+  padding:13px 15px;
+  color:var(--green);
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  min-width:0;
+}
+.url-input:focus{border-color:var(--green2);box-shadow:0 0 0 3px var(--green-dim);}
+.url-input::placeholder{color:var(--muted2);}
+.go-btn{
+  padding:13px 20px;
+  background:var(--green);
+  color:var(--bg);
+  border:none;
+  border-radius:6px;
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.06em;
+  cursor:pointer;
+  transition:opacity .15s, box-shadow .15s;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.go-btn:hover{opacity:.9;box-shadow:0 0 16px rgba(0,255,136,0.3);}
+.go-btn:disabled{opacity:.25;cursor:not-allowed;box-shadow:none;}
+
+/* ── STATUS ── */
+.status{
+  display:none;
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.02em;
+  padding:11px 14px;
+  border-radius:5px;
+  margin-bottom:14px;
+  line-height:1.7;
+}
+.status.info{display:block;color:var(--muted);border:1px solid var(--line2);}
+.status.success{display:block;color:var(--ok);border:1px solid rgba(0,255,136,0.25);background:rgba(0,255,136,0.05);}
+.status.error{display:block;color:var(--err);border:1px solid rgba(255,68,85,0.25);background:rgba(255,68,85,0.05);}
+.status.warn{display:block;color:var(--warn);border:1px solid rgba(255,204,0,0.25);background:rgba(255,204,0,0.05);}
+
+/* ── PROGRESS ── */
+.progress-wrap{display:none;margin-bottom:14px;}
+.prog-meta{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);margin-bottom:7px;}
+.prog-track{height:2px;background:var(--line2);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--green);border-radius:2px;width:0%;transition:width .2s;box-shadow:0 0 6px var(--green);}
+
+/* ── SCAN ANIM ── */
+.scanning{display:none;align-items:center;gap:10px;margin-bottom:14px;font-family:'Space Mono',monospace;font-size:10px;color:var(--green2);}
+.scanning.show{display:flex;}
+.pulse{display:flex;gap:4px;}
+.pulse span{
+  width:4px;height:4px;border-radius:50%;background:var(--green);
+  animation:pulse 1.2s ease-in-out infinite;
+  box-shadow:0 0 5px var(--green);
+}
+.pulse span:nth-child(2){animation-delay:.2s;}
+.pulse span:nth-child(3){animation-delay:.4s;}
+@keyframes pulse{0%,80%,100%{opacity:.15;transform:scale(.6);}40%{opacity:1;transform:scale(1);}}
+
+/* ── RESULTS ── */
+.results-meta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--line);
+}
+.results-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--green2);letter-spacing:0.08em;text-transform:uppercase;}
+.preview-all-btn{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  background:none;
+  border:1px solid var(--line2);
+  border-radius:4px;
+  color:var(--muted);
+  padding:6px 12px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.preview-all-btn:hover{border-color:var(--green2);color:var(--green);}
+
+/* ── MEDIA GRID (images) ── */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:20px;}
+.media-card{
+  border:1px solid var(--line);
+  border-radius:6px;
+  overflow:hidden;
+  background:var(--bg2);
+  transition:border-color .2s;
+}
+.media-card:hover{border-color:var(--green2);}
+.media-thumb{width:100%;height:88px;object-fit:cover;display:block;background:var(--bg2);}
+.media-thumb-ph{width:100%;height:88px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg2);}
+.media-info{padding:8px 10px;}
+.media-name{font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px;}
+.media-dl-btn{
+  width:100%;
+  padding:7px;
+  background:var(--bg);
+  border:1px solid var(--line2);
+  border-radius:4px;
+  color:var(--green2);
+  font-family:'Space Mono',monospace;
+  font-size:8px;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all .15s;
+}
+.media-dl-btn:hover{border-color:var(--green);color:var(--green);box-shadow:0 0 8px var(--green-dim);}
+
+/* ── MEDIA LIST ── */
+.media-list{display:flex;flex-direction:column;margin-bottom:20px;}
+.media-row{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 0;
+  border-bottom:1px solid var(--line);
+  transition:opacity .15s;
+}
+.media-row:last-child{border-bottom:none;}
+.media-row-icon{font-size:17px;flex-shrink:0;opacity:.6;}
+.media-row-info{flex:1;min-width:0;}
+.media-row-name{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.media-row-url{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;}
+.media-row-dl{
+  padding:7px 14px;
+  background:none;
+  border:1px solid var(--line2);
+  border-radius:4px;
+  color:var(--green2);
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  letter-spacing:0.05em;
+  cursor:pointer;
+  flex-shrink:0;
+  transition:all .15s;
+  text-transform:uppercase;
+}
+.media-row-dl:hover{border-color:var(--green);color:var(--green);box-shadow:0 0 8px var(--green-dim);}
+
+/* ── OPTIONS ── */
+.opt-label{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  color:var(--green2);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  display:block;
+  margin-bottom:10px;
+  opacity:.8;
+}
+.check-row{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:8px;cursor:pointer;
+}
+.check-row input{accent-color:var(--green);width:13px;height:13px;cursor:pointer;}
+.check-row span{font-size:13px;color:var(--text);}
+
+/* ── HISTORY ── */
+.history{margin-top:28px;border-top:1px solid var(--line);padding-top:20px;display:none;}
+.history-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;opacity:.7;}
+.history-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid var(--line);
+  font-family:'Space Mono',monospace;font-size:10px;
+}
+.history-item:last-child{border-bottom:none;}
+.h-dot{width:4px;height:4px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 5px var(--green);}
+.h-name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.h-size{color:var(--muted);}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:48px 0;color:var(--muted2);font-family:'Space Mono',monospace;font-size:10px;line-height:2.5;}
+
+/* ── DEPTH BTNS ── */
+.depth-row{display:flex;gap:0;width:fit-content;border:1px solid var(--line2);border-radius:6px;overflow:hidden;margin-top:6px;}
+.depth-btn{
+  padding:8px 16px;
+  background:none;
+  border:none;
+  border-right:1px solid var(--line2);
+  color:var(--muted);
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.depth-btn:last-child{border-right:none;}
+.depth-btn.active{background:var(--green);color:var(--bg);font-weight:700;}
+
+/* ── PREVIEW CARD ── */
+.preview-card{
+  border:1px solid var(--line2);
+  border-radius:8px;
+  padding:16px;
+  margin-top:6px;
+  background:var(--bg2);
+}
+.preview-meta-name{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;}
+.preview-meta-sub{font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);margin-bottom:14px;opacity:.8;}
+.save-btn{
+  width:100%;
+  padding:13px;
+  background:var(--green);
+  color:var(--bg);
+  border:none;
+  border-radius:5px;
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.06em;
+  cursor:pointer;
+  transition:opacity .15s, box-shadow .15s;
+}
+.save-btn:hover{opacity:.9;box-shadow:0 0 18px rgba(0,255,136,0.35);}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--line2);}
+
+/* ── QUALITY POPUP ── */
+.qpop-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.72);
+  z-index:9999;display:flex;align-items:flex-end;justify-content:center;
+  animation:qfadein .18s ease;
+}
+@keyframes qfadein{from{opacity:0;}to{opacity:1;}}
+.qpop-sheet{
+  width:100%;max-width:520px;
+  background:var(--bg2);
+  border:1px solid var(--line2);
+  border-bottom:none;
+  border-radius:14px 14px 0 0;
+  padding:20px 20px 32px;
+  animation:qslidein .2s cubic-bezier(.25,.8,.25,1);
+}
+@keyframes qslidein{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.qpop-handle{width:36px;height:3px;background:var(--line2);border-radius:2px;margin:0 auto 18px;}
+.qpop-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--green2);margin-bottom:4px;opacity:.8;}
+.qpop-name{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:16px;}
+.qpop-list{display:flex;flex-direction:column;gap:8px;}
+.qpop-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;
+  border:1px solid var(--line2);
+  border-radius:7px;
+  background:var(--bg);
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+  gap:12px;
+}
+.qpop-item:hover{border-color:var(--green);background:var(--green-dim);}
+.qpop-item-label{font-family:'Space Mono',monospace;font-size:12px;color:var(--text);font-weight:700;}
+.qpop-item-meta{font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);opacity:.8;}
+.qpop-item-icon{font-size:10px;color:var(--green);opacity:.6;}
+.qpop-cancel{
+  width:100%;margin-top:10px;padding:12px;
+  background:none;border:1px solid var(--line2);border-radius:7px;
+  color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;
+  letter-spacing:0.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;
+}
+.qpop-cancel:hover{border-color:var(--err);color:var(--err);}
+.qpop-loading{text-align:center;padding:16px;font-family:'Space Mono',monospace;font-size:10px;color:var(--green2);}
+
+/* ── UPLOAD BUTTON ── */
+.upload-btn{
+  padding:13px 14px;
+  background:var(--bg2);
+  color:var(--green2);
+  border:1px solid var(--line2);
+  border-radius:6px;
+  font-family:'Space Mono',monospace;
+  font-size:14px;
+  cursor:pointer;
+  transition:all .15s;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  min-width:46px;
+}
+.upload-btn:hover{border-color:var(--green);color:var(--green);box-shadow:0 0 10px var(--green-dim);}
+.upload-file-name{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  color:var(--green2);
+  margin-top:6px;
+  min-height:14px;
+  letter-spacing:0.04em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ── CONVERT PANEL ── */
+.convert-tabs{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;
+}
+.convert-tab{
+  padding:7px 14px;
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  background:var(--bg2);
+  border:1px solid var(--line2);
+  border-radius:5px;
+  color:var(--muted);
+  cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.convert-tab:hover{border-color:var(--green2);color:var(--text);}
+.convert-tab.active{background:var(--green-dim);border-color:var(--green);color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.4);}
+.convert-section{display:none;}
+.convert-section.active{display:block;}
+.convert-desc{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  color:var(--muted);
+  letter-spacing:0.06em;
+  margin-bottom:16px;
+  line-height:1.8;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:5px;
+  background:var(--bg2);
+}
+.convert-btn{
+  width:100%;
+  padding:13px;
+  background:none;
+  border:1px solid var(--green2);
+  border-radius:6px;
+  color:var(--green);
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all .2s;
+  margin-top:10px;
+}
+.convert-btn:hover{background:var(--green-dim);box-shadow:0 0 16px rgba(0,255,136,0.2);}
+.convert-btn:disabled{opacity:.25;cursor:not-allowed;box-shadow:none;}
+.convert-options{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.convert-opt-btn{
+  padding:6px 12px;
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  background:var(--bg2);
+  border:1px solid var(--line2);
+  border-radius:4px;
+  color:var(--muted);
+  cursor:pointer;
+  transition:all .15s;
+}
+.convert-opt-btn.active{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.convert-note{
+  font-family:'Space Mono',monospace;
+  font-size:9px;
+  color:var(--muted);
+  line-height:1.9;
+  margin-top:14px;
+  padding:10px 12px;
+  border-left:2px solid var(--green2);
+  opacity:.7;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Downloader<em>.net</em></div>
+  <div class="status-dot"></div>
+</header>
+
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="switchCat('files')" id="cat-files">Files</button>
+    <button class="tab" onclick="switchCat('webpage')" id="cat-webpage">Webpage</button>
+    <button class="tab" onclick="switchCat('website')" id="cat-website">Website</button>
+    <button class="tab" onclick="switchCat('images')" id="cat-images">Images</button>
+    <button class="tab" onclick="switchCat('gif')" id="cat-gif">GIF</button>
+    <button class="tab" onclick="switchCat('video')" id="cat-video">Video</button>
+    <button class="tab" onclick="switchCat('audio')" id="cat-audio">Audio</button>
+    <button class="tab" onclick="switchCat('pdf')" id="cat-pdf">PDF</button>
+    <button class="tab" onclick="switchCat('convert')" id="cat-convert">Convert</button>
+  </div>
+</div>
+
+<main>
+
+<!-- FILES -->
+<div class="panel active" id="panel-files">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Files</div>
+    <div class="panel-title">File Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('files','direct')">Direct URL</button>
+    <button onclick="setMode('files','scan')">Scan Page</button>
+  </div>
+  <div id="files-direct">
+    <div class="input-row">
+      <input class="url-input" id="files-direct-url" placeholder="https://site.com/archive.zip" onkeydown="if(event.key==='Enter')directDownload('files-direct-url','files-status','files-progress',[])"/>
+      <button class="go-btn" onclick="directDownload('files-direct-url','files-status','files-progress',[])">Fetch</button>
+    </div>
+    <div class="input-row" style="margin-top:-2px;">
+      <input class="url-input" id="files-name" placeholder="Save as… (optional)"/>
+    </div>
+  </div>
+  <div id="files-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="files-scan-url" placeholder="https://site.com/downloads" onkeydown="if(event.key==='Enter')scanPage('files-scan-url','files-status','files-results','file')"/>
+      <button class="go-btn" onclick="scanPage('files-scan-url','files-status','files-results','file')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="files-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="files-scan-txt">Scanning…</span></div>
+  <div class="status" id="files-status"></div>
+  <div class="progress-wrap" id="files-progress"><div class="prog-meta"><span id="files-prog-txt">Loading…</span><span id="files-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="files-prog-fill"></div></div></div>
+  <div id="files-results"></div>
+  <div class="history" id="files-history"><div class="history-label">This session</div><div id="files-history-list"></div></div>
+</div>
+
+<!-- IMAGES -->
+<div class="panel" id="panel-images">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Images</div>
+    <div class="panel-title">Image Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('images','direct')">Direct URL</button>
+    <button onclick="setMode('images','scan')">Scan Page</button>
+  </div>
+  <div id="images-direct">
+    <div class="input-row">
+      <input class="url-input" id="images-direct-url" placeholder="https://site.com/photo.jpg" onkeydown="if(event.key==='Enter')directDownload('images-direct-url','images-status','images-progress',['jpg','jpeg','png','webp','svg','bmp','tiff','avif'])"/>
+      <button class="go-btn" onclick="directDownload('images-direct-url','images-status','images-progress',['jpg','jpeg','png','webp','svg','bmp','tiff','avif'])">Fetch</button>
+    </div>
+  </div>
+  <div id="images-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="images-scan-url" placeholder="https://site.com/gallery" onkeydown="if(event.key==='Enter')scanPage('images-scan-url','images-status','images-results','image')"/>
+      <button class="go-btn" onclick="scanPage('images-scan-url','images-status','images-results','image')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="images-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="images-scan-txt">Scanning…</span></div>
+  <div class="status" id="images-status"></div>
+  <div class="progress-wrap" id="images-progress"><div class="prog-meta"><span id="images-prog-txt">Loading…</span><span id="images-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="images-prog-fill"></div></div></div>
+  <div id="images-results"></div>
+  <div class="history" id="images-history"><div class="history-label">This session</div><div id="images-history-list"></div></div>
+</div>
+
+<!-- GIF -->
+<div class="panel" id="panel-gif">
+  <div class="panel-head">
+    <div class="panel-label">Mode / GIF</div>
+    <div class="panel-title">GIF Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('gif','direct')">Direct URL</button>
+    <button onclick="setMode('gif','scan')">Scan Page</button>
+  </div>
+  <div id="gif-direct">
+    <div class="input-row">
+      <input class="url-input" id="gif-direct-url" placeholder="https://site.com/animation.gif" onkeydown="if(event.key==='Enter')directDownload('gif-direct-url','gif-status','gif-progress',['gif'])"/>
+      <button class="go-btn" onclick="directDownload('gif-direct-url','gif-status','gif-progress',['gif'])">Fetch</button>
+    </div>
+  </div>
+  <div id="gif-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="gif-scan-url" placeholder="https://site.com/page" onkeydown="if(event.key==='Enter')scanPage('gif-scan-url','gif-status','gif-results','gif')"/>
+      <button class="go-btn" onclick="scanPage('gif-scan-url','gif-status','gif-results','gif')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="gif-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="gif-scan-txt">Scanning…</span></div>
+  <div class="status" id="gif-status"></div>
+  <div class="progress-wrap" id="gif-progress"><div class="prog-meta"><span id="gif-prog-txt">Loading…</span><span id="gif-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="gif-prog-fill"></div></div></div>
+  <div id="gif-results"></div>
+  <div class="history" id="gif-history"><div class="history-label">This session</div><div id="gif-history-list"></div></div>
+</div>
+
+<!-- VIDEO -->
+<div class="panel" id="panel-video">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Video</div>
+    <div class="panel-title">Video Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('video','direct')">Direct URL</button>
+    <button onclick="setMode('video','scan')">Scan Page</button>
+  </div>
+  <div id="video-direct">
+    <div class="input-row">
+      <input class="url-input" id="video-direct-url" placeholder="https://site.com/video.mp4" onkeydown="if(event.key==='Enter')directDownload('video-direct-url','video-status','video-progress',['mp4','webm','mkv','avi','mov','flv','wmv','m4v','3gp'])"/>
+      <button class="go-btn" onclick="directDownload('video-direct-url','video-status','video-progress',['mp4','webm','mkv','avi','mov','flv','wmv','m4v','3gp'])">Fetch</button>
+    </div>
+  </div>
+  <div id="video-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="video-scan-url" placeholder="https://site.com/page" onkeydown="if(event.key==='Enter')scanPage('video-scan-url','video-status','video-results','video')"/>
+      <button class="go-btn" onclick="scanPage('video-scan-url','video-status','video-results','video')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="video-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="video-scan-txt">Scanning…</span></div>
+  <div class="status" id="video-status"></div>
+  <div class="progress-wrap" id="video-progress"><div class="prog-meta"><span id="video-prog-txt">Loading…</span><span id="video-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="video-prog-fill"></div></div></div>
+  <div id="video-results"></div>
+  <div class="history" id="video-history"><div class="history-label">This session</div><div id="video-history-list"></div></div>
+</div>
+
+<!-- AUDIO -->
+<div class="panel" id="panel-audio">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Audio</div>
+    <div class="panel-title">Audio Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('audio','direct')">Direct URL</button>
+    <button onclick="setMode('audio','scan')">Scan Page</button>
+  </div>
+  <div id="audio-direct">
+    <div class="input-row">
+      <input class="url-input" id="audio-direct-url" placeholder="https://site.com/track.mp3" onkeydown="if(event.key==='Enter')directDownload('audio-direct-url','audio-status','audio-progress',['mp3','wav','ogg','flac','aac','m4a','opus','wma'])"/>
+      <button class="go-btn" onclick="directDownload('audio-direct-url','audio-status','audio-progress',['mp3','wav','ogg','flac','aac','m4a','opus','wma'])">Fetch</button>
+    </div>
+  </div>
+  <div id="audio-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="audio-scan-url" placeholder="https://site.com/page" onkeydown="if(event.key==='Enter')scanPage('audio-scan-url','audio-status','audio-results','audio')"/>
+      <button class="go-btn" onclick="scanPage('audio-scan-url','audio-status','audio-results','audio')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="audio-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="audio-scan-txt">Scanning…</span></div>
+  <div class="status" id="audio-status"></div>
+  <div class="progress-wrap" id="audio-progress"><div class="prog-meta"><span id="audio-prog-txt">Loading…</span><span id="audio-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="audio-prog-fill"></div></div></div>
+  <div id="audio-results"></div>
+  <div class="history" id="audio-history"><div class="history-label">This session</div><div id="audio-history-list"></div></div>
+</div>
+
+<!-- PDF -->
+<div class="panel" id="panel-pdf">
+  <div class="panel-head">
+    <div class="panel-label">Mode / PDF</div>
+    <div class="panel-title">PDF Downloader</div>
+  </div>
+  <div class="mode-sw">
+    <button class="active" onclick="setMode('pdf','direct')">Direct URL</button>
+    <button onclick="setMode('pdf','scan')">Scan Page</button>
+  </div>
+  <div id="pdf-direct">
+    <div class="input-row">
+      <input class="url-input" id="pdf-direct-url" placeholder="https://site.com/document.pdf" onkeydown="if(event.key==='Enter')directDownload('pdf-direct-url','pdf-status','pdf-progress',['pdf'])"/>
+      <button class="go-btn" onclick="directDownload('pdf-direct-url','pdf-status','pdf-progress',['pdf'])">Fetch</button>
+    </div>
+  </div>
+  <div id="pdf-scan" style="display:none">
+    <div class="input-row">
+      <input class="url-input" id="pdf-scan-url" placeholder="https://site.com/page" onkeydown="if(event.key==='Enter')scanPage('pdf-scan-url','pdf-status','pdf-results','pdf')"/>
+      <button class="go-btn" onclick="scanPage('pdf-scan-url','pdf-status','pdf-results','pdf')">Scan</button>
+    </div>
+  </div>
+  <div class="scanning" id="pdf-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="pdf-scan-txt">Scanning…</span></div>
+  <div class="status" id="pdf-status"></div>
+  <div class="progress-wrap" id="pdf-progress"><div class="prog-meta"><span id="pdf-prog-txt">Loading…</span><span id="pdf-prog-pct">0%</span></div><div class="prog-track"><div class="prog-fill" id="pdf-prog-fill"></div></div></div>
+  <div id="pdf-results"></div>
+  <div class="history" id="pdf-history"><div class="history-label">This session</div><div id="pdf-history-list"></div></div>
+</div>
+
+<!-- WEBPAGE -->
+<div class="panel" id="panel-webpage">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Webpage</div>
+    <div class="panel-title">Webpage Downloader</div>
+  </div>
+  <div class="input-row">
+    <input class="url-input" id="webpage-url" placeholder="https://site.com/page" onkeydown="if(event.key==='Enter')downloadWebpage()"/>
+    <button class="go-btn" id="webpage-btn" onclick="downloadWebpage()">Save</button>
+  </div>
+  <div style="margin-bottom:16px;">
+    <span class="opt-label">Options</span>
+    <label class="check-row"><input type="checkbox" id="wp-inline" checked/><span>Inline CSS & basic styles</span></label>
+    <label class="check-row"><input type="checkbox" id="wp-meta" checked/><span>Keep meta tags</span></label>
+    <label class="check-row"><input type="checkbox" id="wp-clean"/><span>Strip scripts</span></label>
+  </div>
+  <div class="scanning" id="webpage-scanning"><div class="pulse"><span></span><span></span><span></span></div><span>Fetching…</span></div>
+  <div class="status" id="webpage-status"></div>
+  <div class="history" id="webpage-history"><div class="history-label">This session</div><div id="webpage-history-list"></div></div>
+</div>
+
+<!-- WEBSITE -->
+<div class="panel" id="panel-website">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Website</div>
+    <div class="panel-title">Website Crawler</div>
+  </div>
+  <div class="input-row">
+    <input class="url-input" id="website-url" placeholder="https://site.com" onkeydown="if(event.key==='Enter')downloadWebsite()"/>
+    <button class="go-btn" id="website-btn" onclick="downloadWebsite()">Crawl</button>
+  </div>
+  <div style="margin-bottom:16px;">
+    <span class="opt-label">Depth</span>
+    <div class="depth-row">
+      <button class="depth-btn active" id="depth-1" onclick="setDepth(1)">1</button>
+      <button class="depth-btn" id="depth-5" onclick="setDepth(5)">5</button>
+      <button class="depth-btn" id="depth-10" onclick="setDepth(10)">10</button>
+      <button class="depth-btn" id="depth-20" onclick="setDepth(20)">20</button>
+    </div>
+  </div>
+  <div class="scanning" id="website-scanning"><div class="pulse"><span></span><span></span><span></span></div><span id="website-scan-txt">Crawling…</span></div>
+  <div class="status" id="website-status"></div>
+  <div id="website-results"></div>
+</div>
+
+<!-- CONVERT -->
+<div class="panel" id="panel-convert">
+  <div class="panel-head">
+    <div class="panel-label">Mode / Convert</div>
+    <div class="panel-title">Media Converter</div>
+  </div>
+
+  <div class="convert-tabs">
+    <button class="convert-tab active" onclick="switchConvert('v2gif')">Video → GIF</button>
+    <button class="convert-tab" onclick="switchConvert('v2img')">Video → Images</button>
+    <button class="convert-tab" onclick="switchConvert('v2audio')">Video → Audio</button>
+    <button class="convert-tab" onclick="switchConvert('gif2video')">GIF → Video</button>
+    <button class="convert-tab" onclick="switchConvert('img2gif')">Images → GIF</button>
+    <button class="convert-tab" onclick="switchConvert('img2video')">Images → Video</button>
+  </div>
+
+  <!-- VIDEO → GIF -->
+  <div class="convert-section active" id="csec-v2gif">
+    <div class="convert-desc">Extract animated GIF from a video file or URL. Paste a direct video link or upload from your device.</div>
+    <div class="input-row">
+      <input class="url-input" id="v2gif-url" placeholder="https://site.com/video.mp4"/>
+      <input type="file" id="v2gif-file" style="display:none" accept="video/*" onchange="onConvertFileChange('v2gif')"/>
+      <button class="upload-btn" title="Upload video" onclick="document.getElementById('v2gif-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="v2gif-fname"></div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">FPS:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('v2gif-fps',this,'10')">10</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2gif-fps',this,'15')">15</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2gif-fps',this,'24')">24</button>
+    </div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Size:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('v2gif-size',this,'480')">480p</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2gif-size',this,'720')">720p</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2gif-size',this,'original')">Original</button>
+    </div>
+    <button class="convert-btn" onclick="convertMedia('v2gif')">▶ Convert to GIF</button>
+    <div class="status" id="v2gif-status"></div>
+    <div id="v2gif-result"></div>
+    <div class="convert-note">⚠ Conversion runs in-browser via Canvas. For large or long videos, use a short clip or lower FPS. Long videos may be slow on mobile.</div>
+  </div>
+
+  <!-- VIDEO → IMAGES -->
+  <div class="convert-section" id="csec-v2img">
+    <div class="convert-desc">Extract still frames from a video as individual PNG images. Paste a URL or upload a local video file.</div>
+    <div class="input-row">
+      <input class="url-input" id="v2img-url" placeholder="https://site.com/video.mp4"/>
+      <input type="file" id="v2img-file" style="display:none" accept="video/*" onchange="onConvertFileChange('v2img')"/>
+      <button class="upload-btn" title="Upload video" onclick="document.getElementById('v2img-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="v2img-fname"></div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Every:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('v2img-interval',this,'1')">1s</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2img-interval',this,'2')">2s</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2img-interval',this,'5')">5s</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2img-interval',this,'10')">10s</button>
+    </div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Max:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('v2img-max',this,'20')">20 frames</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2img-max',this,'50')">50 frames</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('v2img-max',this,'999')">All</button>
+    </div>
+    <button class="convert-btn" onclick="convertMedia('v2img')">▶ Extract Frames</button>
+    <div class="status" id="v2img-status"></div>
+    <div id="v2img-result"></div>
+    <div class="convert-note">Frames are extracted as PNG images. Tap any frame to download it individually, or use Download All.</div>
+  </div>
+
+  <!-- VIDEO → AUDIO -->
+  <div class="convert-section" id="csec-v2audio">
+    <div class="convert-desc">Strip the audio track from a video file. Paste a direct video URL or upload from your device.</div>
+    <div class="input-row">
+      <input class="url-input" id="v2audio-url" placeholder="https://site.com/video.mp4"/>
+      <input type="file" id="v2audio-file" style="display:none" accept="video/*" onchange="onConvertFileChange('v2audio')"/>
+      <button class="upload-btn" title="Upload video" onclick="document.getElementById('v2audio-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="v2audio-fname"></div>
+    <button class="convert-btn" onclick="convertMedia('v2audio')">▶ Extract Audio</button>
+    <div class="status" id="v2audio-status"></div>
+    <div id="v2audio-result"></div>
+    <div class="convert-note">Audio is extracted using the Web Audio API. Output format is WebM/Opus or MP4/AAC depending on browser support. For MP3, use a desktop tool like FFmpeg.</div>
+  </div>
+
+  <!-- GIF → VIDEO -->
+  <div class="convert-section" id="csec-gif2video">
+    <div class="convert-desc">Convert an animated GIF into a looping MP4/WebM video. Paste a GIF URL or upload a local file.</div>
+    <div class="input-row">
+      <input class="url-input" id="gif2video-url" placeholder="https://site.com/animation.gif"/>
+      <input type="file" id="gif2video-file" style="display:none" accept=".gif,image/gif" onchange="onConvertFileChange('gif2video')"/>
+      <button class="upload-btn" title="Upload GIF" onclick="document.getElementById('gif2video-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="gif2video-fname"></div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Format:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('gif2video-fmt',this,'webm')">WebM</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('gif2video-fmt',this,'mp4')">MP4</button>
+    </div>
+    <button class="convert-btn" onclick="convertMedia('gif2video')">▶ Convert to Video</button>
+    <div class="status" id="gif2video-status"></div>
+    <div id="gif2video-result"></div>
+    <div class="convert-note">GIF is drawn frame-by-frame onto a Canvas and recorded via MediaRecorder. Output quality depends on original GIF resolution.</div>
+  </div>
+
+  <!-- IMAGES → GIF -->
+  <div class="convert-section" id="csec-img2gif">
+    <div class="convert-desc">Combine multiple images into an animated GIF. Upload files from your device (JPEG, PNG, WebP supported).</div>
+    <div class="input-row">
+      <input class="url-input" id="img2gif-url" placeholder="Paste image URLs one per line (optional)"/>
+      <input type="file" id="img2gif-file" style="display:none" accept="image/*" multiple onchange="onConvertFileChange('img2gif')"/>
+      <button class="upload-btn" title="Upload images" onclick="document.getElementById('img2gif-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="img2gif-fname"></div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Delay:</span>
+      <button class="convert-opt-btn" onclick="setConvertOpt('img2gif-delay',this,'200')">Fast (200ms)</button>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('img2gif-delay',this,'500')">Normal (500ms)</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('img2gif-delay',this,'1000')">Slow (1s)</button>
+    </div>
+    <button class="convert-btn" onclick="convertMedia('img2gif')">▶ Create GIF</button>
+    <div class="status" id="img2gif-status"></div>
+    <div id="img2gif-result"></div>
+    <div class="convert-note">Images are animated in upload order. Uses an in-browser GIF encoder (gif.js). For best results, keep images under 1000px wide.</div>
+  </div>
+
+  <!-- IMAGES → VIDEO -->
+  <div class="convert-section" id="csec-img2video">
+    <div class="convert-desc">Compile multiple images into a looping video slideshow. Upload image files from your device.</div>
+    <div class="input-row">
+      <input class="url-input" id="img2video-url" placeholder="Paste image URLs one per line (optional)"/>
+      <input type="file" id="img2video-file" style="display:none" accept="image/*" multiple onchange="onConvertFileChange('img2video')"/>
+      <button class="upload-btn" title="Upload images" onclick="document.getElementById('img2video-file').click()">⬆</button>
+    </div>
+    <div class="upload-file-name" id="img2video-fname"></div>
+    <div class="convert-options">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;align-self:center;">Duration per image:</span>
+      <button class="convert-opt-btn active" onclick="setConvertOpt('img2video-dur',this,'1000')">1s</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('img2video-dur',this,'2000')">2s</button>
+      <button class="convert-opt-btn" onclick="setConvertOpt('img2video-dur',this,'3000')">3s</button>
+    </div>
+    <button class="convert-btn" onclick="convertMedia('img2video')">▶ Create Video</button>
+    <div class="status" id="img2video-status"></div>
+    <div id="img2video-result"></div>
+    <div class="convert-note">Each image is displayed for the chosen duration. Output is WebM format recorded via Canvas + MediaRecorder.</div>
+  </div>
+
+</div>
+
+</main>
+
+<script>
+const EXT_MAP={image:['jpg','jpeg','png','webp','svg','bmp','tiff','avif','ico'],gif:['gif'],video:['mp4','webm','mkv','avi','mov','flv','wmv','m4v','3gp','ogv'],audio:['mp3','wav','ogg','flac','aac','m4a','opus','wma'],pdf:['pdf'],file:[]};
+const TYPE_ICON={image:'🖼',gif:'🎞',video:'🎬',audio:'🎵',pdf:'📄',file:'📦'};
+const dlHistory={};
+let websiteDepth=1;
+
+function switchCat(name){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cat-'+name).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+function setMode(cat,mode){
+  const panel=document.getElementById('panel-'+cat);
+  const btns=panel.querySelectorAll('.mode-sw button');
+  btns.forEach((b,i)=>b.classList.toggle('active',(i===0&&mode==='direct')||(i===1&&mode==='scan')));
+  document.getElementById(cat+'-direct').style.display=mode==='direct'?'block':'none';
+  document.getElementById(cat+'-scan').style.display=mode==='scan'?'block':'none';
+  const res=document.getElementById(cat+'-results');
+  if(res)res.innerHTML='';
+  const st=document.getElementById(cat+'-status');
+  if(st){st.className='status';st.textContent='';}
+}
+
+function setDepth(n){
+  websiteDepth=n;
+  [1,5,10,20].forEach(d=>{const b=document.getElementById('depth-'+d);if(b)b.classList.toggle('active',d===n);});
+}
+
+function setStatus(id,msg,type){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.className='status '+type;}
+
+function formatBytes(b){if(!b||b===0)return'';if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(2)+' MB';}
+
+function getFilename(url,cd){
+  if(cd){const m=cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);if(m)return decodeURIComponent(m[1].replace(/['"]/g,''));}
+  try{const p=new URL(url).pathname.split('/');const n=p[p.length-1];if(n&&n.includes('.'))return decodeURIComponent(n);}catch(e){}
+  return'downloaded_file';
+}
+
+function getExt(url){try{const p=new URL(url).pathname;const dot=p.lastIndexOf('.');if(dot>=0)return p.substring(dot+1).toLowerCase().split('?')[0];}catch(e){}return'';}
+
+function addHistory(cat,name,size){
+  if(!dlHistory[cat])dlHistory[cat]=[];
+  dlHistory[cat].unshift({name,size});
+  const box=document.getElementById(cat+'-history');
+  const list=document.getElementById(cat+'-history-list');
+  if(!box||!list)return;
+  box.style.display='block';
+  list.innerHTML=dlHistory[cat].slice(0,6).map(h=>`<div class="history-item"><div class="h-dot"></div><span class="h-name">${h.name}</span><span class="h-size">${h.size}</span></div>`).join('');
+}
+
+async function fetchCascade(url,opts={},onProgress=null){
+  const report=s=>{if(onProgress)onProgress(s);};
+  report('Trying direct…');
+  try{
+    const ac=new AbortController();
+    const tid=setTimeout(()=>ac.abort(),8000);
+    const r=await fetch(url,{...opts,signal:ac.signal,mode:'cors'});
+    clearTimeout(tid);
+    if(r.ok){report('Connected directly');return{response:r,via:'direct'};}
+  }catch(e){}
+  report('Trying proxies…');
+  const PROXY_LIST=[
+    u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u=>`https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
+  /* Race proxies — first to respond wins, cancel the rest */
+  const acs=PROXY_LIST.map(()=>new AbortController());
+  const proxyAttempts=PROXY_LIST.map((fn,i)=>
+    fetch(fn(url),{...opts,signal:acs[i].signal})
+      .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);acs.forEach((a,j)=>{if(j!==i)a.abort();});return{response:r,via:'proxy'};})
+  );
+  try{return await Promise.any(proxyAttempts);}
+  catch(e){acs.forEach(a=>a.abort());throw new Error('All sources failed. Try a direct file URL.');}
+}
+
+async function directDownload(inputId,statusId,progressId,allowedExts){
+  const url=document.getElementById(inputId).value.trim();
+  const customName=document.getElementById('files-name')?document.getElementById('files-name').value.trim():'';
+  if(!url){setStatus(statusId,'⚠ Paste a URL first.','error');return;}
+  if(!url.startsWith('http')){setStatus(statusId,'⚠ URL must start with http://','error');return;}
+  const cat=statusId.replace('-status','');
+  if(allowedExts.length>0){
+    try{const urlPath=new URL(url).pathname.toLowerCase();const urlExt=urlPath.includes('.')?urlPath.split('.').pop().split('?')[0]:'';if(urlExt&&!allowedExts.includes(urlExt)){setStatus(statusId,`⚠ .${urlExt} detected — use the correct tab or Files tab for any type.`,'warn');return;}}catch(e){}
+  }
+  const progressWrap=document.getElementById(progressId);
+  const resultsEl=document.getElementById(cat+'-results');
+  if(progressWrap)progressWrap.style.display='none';
+  if(resultsEl)resultsEl.innerHTML='';
+  setStatus(statusId,'Fetching…','info');
+  const pfx=progressId.replace('-progress','');
+  const fillEl=document.getElementById(pfx+'-prog-fill');
+  const pctEl=document.getElementById(pfx+'-prog-pct');
+  const txtEl=document.getElementById(pfx+'-prog-txt');
+  try{
+    const{response,via}=await fetchCascade(url,{},msg=>setStatus(statusId,msg,'info'));
+    const contentType=response.headers.get('content-type')||'';
+    const contentLength=parseInt(response.headers.get('content-length')||'0');
+    const cd=response.headers.get('content-disposition');
+    const finalName=customName||getFilename(url,cd);
+    setStatus(statusId,'Loading…','info');
+    if(contentLength>0&&progressWrap)progressWrap.style.display='block';
+    /* Stream with periodic UI yield so page stays responsive */
+    const reader=response.body.getReader();
+    const chunks=[];let received=0,chunkCount=0;
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      chunks.push(value);received+=value.length;chunkCount++;
+      if(contentLength>0&&fillEl&&pctEl&&txtEl){
+        const pct=Math.round((received/contentLength)*100);
+        fillEl.style.width=pct+'%';pctEl.textContent=pct+'%';
+        txtEl.textContent=formatBytes(received)+' / '+formatBytes(contentLength);
+      }
+      /* Yield to UI thread every 40 chunks to prevent hang */
+      if(chunkCount%40===0)await new Promise(r=>setTimeout(r,0));
+    }
+    if(progressWrap)progressWrap.style.display='none';
+    const blob=new Blob(chunks,{type:contentType});
+    showDirectPreview(resultsEl,blob,contentType,finalName,url,cat,statusId,via);
+  }catch(err){
+    if(progressWrap)progressWrap.style.display='none';
+    setStatus(statusId,'❌ '+err.message,'error');
+  }
+}
+
+function showDirectPreview(container,blob,contentType,name,originalUrl,cat,statusId,via){
+  const blobUrl=URL.createObjectURL(blob);
+  const size=formatBytes(blob.size);
+  const isImage=/image\//.test(contentType);
+  const isVideo=/video\//.test(contentType);
+  const isAudio=/audio\//.test(contentType);
+  const isPdf=/pdf/.test(contentType);
+  let previewHtml='';
+  if(isImage)previewHtml=`<img src="${blobUrl}" style="width:100%;max-height:240px;object-fit:contain;border-radius:5px;background:var(--bg);display:block;margin-bottom:10px;" alt="${name}" loading="lazy"/>`;
+  else if(isVideo)previewHtml=`<video src="${blobUrl}" controls preload="metadata" style="width:100%;border-radius:5px;margin-bottom:10px;max-height:220px;"></video>`;
+  else if(isAudio)previewHtml=`<audio src="${blobUrl}" controls preload="metadata" style="width:100%;margin-bottom:10px;"></audio>`;
+  else previewHtml=`<div style="text-align:center;padding:20px;font-size:32px;opacity:.4;">📦</div>`;
+  container.innerHTML=`<div class="preview-card" data-bloburl="${blobUrl}" data-name="${encodeURIComponent(name)}" data-cat="${cat}" data-size="${size}" data-type="${contentType.split(';')[0]||'unknown'}" data-via="${via}" data-origurl="${encodeURIComponent(originalUrl||'')}">${previewHtml}<div class="preview-meta-name">${name}</div><div class="preview-meta-sub">${size}${via!=='direct'?' · proxy':''} · ${contentType.split(';')[0]||'unknown'}</div><div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);text-align:center;opacity:.6;margin-top:8px;letter-spacing:0.06em;">DOUBLE TAP PREVIEW TO DOWNLOAD</div></div>`;
+  bindDoubleTap(container.querySelector('.preview-card'));
+  setStatus(statusId,'Ready — double tap the preview to download','success');
+}
+
+function saveBlob(blobUrl,encodedName,cat){
+  const name=decodeURIComponent(encodedName);
+  /* Use a unique fragment on the URL to prevent the "Download again?" dialog */
+  const a=document.createElement('a');
+  a.href=blobUrl+'#'+Date.now();
+  a.download=name;
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>document.body.removeChild(a),500);
+  addHistory(cat,name,'');
+}
+
+async function scanPage(inputId,statusId,resultsId,type){
+  const url=document.getElementById(inputId).value.trim();
+  if(!url){setStatus(statusId,'⚠ Paste a page URL.','error');return;}
+  if(!url.startsWith('http')){setStatus(statusId,'⚠ URL must start with http://','error');return;}
+  const cat=statusId.replace('-status','');
+  const scanningEl=document.getElementById(cat+'-scanning');
+  const txtEl=document.getElementById(cat+'-scan-txt');
+  const resultsEl=document.getElementById(resultsId);
+  if(scanningEl)scanningEl.classList.add('show');
+  resultsEl.innerHTML='';
+  setStatus(statusId,'','');
+  document.getElementById(statusId).className='status';
+  if(txtEl)txtEl.textContent='Connecting…';
+  try{
+    const{response:pageResp,via}=await fetchCascade(url,{},msg=>{if(txtEl)txtEl.textContent=msg;});
+    if(txtEl)txtEl.textContent='Parsing…';
+    const html=await pageResp.text();
+    if(!html)throw new Error('Empty response from page');
+    const baseUrl=new URL(url);
+    const found=extractMedia(html,baseUrl,type);
+    if(scanningEl)scanningEl.classList.remove('show');
+    if(found.length===0){const typeLabel=type==='file'?'downloadable':type;setStatus(statusId,'⚠ No '+typeLabel+' files found. Site may load media via JavaScript.','warn');return;}
+    setStatus(statusId,found.length+' file(s) found'+(via!=='direct'?' · proxy':''),'success');
+    renderResults(resultsEl,found,type,cat);
+  }catch(err){if(scanningEl)scanningEl.classList.remove('show');setStatus(statusId,'❌ '+err.message,'error');}
+}
+
+function extractMedia(html,baseUrl,type){
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(html,'text/html');
+  const found=new Map();
+  const exts=EXT_MAP[type]||[];
+  const isFile=type==='file';
+  function resolveUrl(rawUrl){if(!rawUrl||rawUrl.startsWith('data:')||rawUrl.startsWith('javascript:')||rawUrl.startsWith('#'))return null;try{if(rawUrl.startsWith('http'))return rawUrl;if(rawUrl.startsWith('//'))return'https:'+rawUrl;if(rawUrl.startsWith('/'))return baseUrl.origin+rawUrl;return baseUrl.origin+'/'+rawUrl;}catch(e){return null;}}
+  function addUrl(rawUrl){const abs=resolveUrl(rawUrl);if(!abs)return;try{const path=new URL(abs).pathname.toLowerCase();const ext=path.includes('.')?path.split('.').pop().split('?')[0]:'';const pass=isFile?(ext.length>0&&ext.length<=5):exts.includes(ext);if(pass&&!found.has(abs)){const rawName=abs.split('/').pop().split('?')[0];found.set(abs,{url:abs,name:decodeURIComponent(rawName)||abs,ext});}}catch(e){}}
+  if(type==='image'||type==='gif'||isFile){doc.querySelectorAll('img[src]').forEach(el=>addUrl(el.getAttribute('src')));doc.querySelectorAll('img[data-src]').forEach(el=>addUrl(el.getAttribute('data-src')));doc.querySelectorAll('[srcset]').forEach(el=>{el.getAttribute('srcset').split(',').forEach(s=>addUrl(s.trim().split(' ')[0]));});doc.querySelectorAll('[style]').forEach(el=>{const m=el.getAttribute('style').match(/url\(['"]?([^'"()]+)['"]?\)/g)||[];m.forEach(u=>addUrl(u.replace(/url\(['"]?/,'').replace(/['"]?\)$/,'')));});doc.querySelectorAll('meta[content]').forEach(el=>{const c=el.getAttribute('content')||'';if(c.startsWith('http'))addUrl(c);});}
+  if(type==='video'||isFile){doc.querySelectorAll('video[src]').forEach(el=>addUrl(el.getAttribute('src')));doc.querySelectorAll('video source[src]').forEach(el=>addUrl(el.getAttribute('src')));}
+  if(type==='audio'||isFile){doc.querySelectorAll('audio[src]').forEach(el=>addUrl(el.getAttribute('src')));doc.querySelectorAll('audio source[src]').forEach(el=>addUrl(el.getAttribute('src')));}
+  if(type==='pdf'||isFile)doc.querySelectorAll('a[href]').forEach(el=>addUrl(el.getAttribute('href')));
+  if(isFile){doc.querySelectorAll('source[src]').forEach(el=>addUrl(el.getAttribute('src')));doc.querySelectorAll('embed[src]').forEach(el=>addUrl(el.getAttribute('src')));doc.querySelectorAll('object[data]').forEach(el=>addUrl(el.getAttribute('data')));}
+  return[...found.values()];
+}
+
+function renderResults(container,items,type,cat){
+  const isImage=type==='image'||type==='gif';
+  let html=`<div class="results-meta"><span class="results-count">${items.length} item${items.length!==1?'s':''}</span><button class="preview-all-btn" onclick="downloadAll(${JSON.stringify(items).replace(/"/g,'&quot;')},'${cat}')">Preview All</button></div>`;
+  if(isImage){
+    html+='<div class="media-grid">';
+    items.forEach((item,i)=>{
+      const rowId='row-img-'+cat+'-'+i;
+      html+=`<div class="media-card" id="${rowId}" data-url="${encodeURIComponent(item.url)}" data-origurl="${encodeURIComponent(item.url)}"><img class="media-thumb" src="${item.url}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="${item.name}"/><div class="media-thumb-ph" style="display:none">${TYPE_ICON[type]||'📁'}</div><div class="media-info"><div class="media-name">${item.name}</div><button class="media-dl-btn" onclick="smartDownload('${encodeURIComponent(item.url)}','${encodeURIComponent(item.name)}','${cat}',document.getElementById('${rowId}'))">Preview & Save</button></div></div>`;
+    });
+    html+='</div>';
+  }else{
+    html+='<div class="media-list">';
+    items.forEach((item,i)=>{
+      const rowId='row-'+cat+'-'+i;
+      html+=`<div class="media-row" id="${rowId}" data-url="${encodeURIComponent(item.url)}" data-origurl="${encodeURIComponent(item.url)}"><span class="media-row-icon">${TYPE_ICON[type]||'📁'}</span><div class="media-row-info"><div class="media-row-name">${item.name}</div><div class="media-row-url">${item.url.substring(0,60)}${item.url.length>60?'…':''}</div></div><button class="media-row-dl" onclick="smartDownload('${encodeURIComponent(item.url)}','${encodeURIComponent(item.name)}','${cat}',document.getElementById('${rowId}'))">Preview</button></div>`;
+    });
+    html+='</div>';
+  }
+  container.innerHTML=html;
+  /* Bind double-tap on already-loaded cards (they need a blobUrl — set after smartDownload) */
+  container.querySelectorAll('.media-card,.media-row').forEach(card=>{bindDoubleTap(card);});
+}
+
+async function smartDownload(encodedUrl,encodedName,cat,rowEl){
+  const url=decodeURIComponent(encodedUrl);
+  const name=decodeURIComponent(encodedName);
+  const statusId=cat+'-status';
+  const row=(typeof rowEl==='string')?document.getElementById(rowEl):rowEl;
+  setStatus(statusId,'Loading '+name+'…','info');
+  if(row){row.style.opacity='0.4';row.style.pointerEvents='none';}
+  try{
+    const{response:r,via}=await fetchCascade(url);
+    const contentType=r.headers.get('content-type')||'';
+    const chunks=[];const reader=r.body.getReader();let received=0,chunkCount=0;
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      chunks.push(value);received+=value.length;chunkCount++;
+      if(chunkCount%40===0)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    const blob=new Blob(chunks,{type:contentType});
+    const blobUrl=URL.createObjectURL(blob);
+    const size=formatBytes(received);
+    const isImg=/image\//.test(contentType)||/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp)$/i.test(name);
+    const isVid=/video\//.test(contentType)||/\.(mp4|webm|mkv|mov|avi)$/i.test(name);
+    const isAud=/audio\//.test(contentType)||/\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(name);
+    let previewEl='';
+    if(isImg)previewEl=`<img src="${blobUrl}" style="width:100%;max-height:200px;object-fit:contain;border-radius:5px;display:block;margin-bottom:8px;background:var(--bg);" loading="lazy"/>`;
+    else if(isVid)previewEl=`<video src="${blobUrl}" controls preload="metadata" style="width:100%;max-height:180px;border-radius:5px;margin-bottom:8px;"></video>`;
+    else if(isAud)previewEl=`<audio src="${blobUrl}" controls preload="metadata" style="width:100%;margin-bottom:8px;"></audio>`;
+    else previewEl=`<div style="font-size:28px;text-align:center;padding:12px 0;opacity:.4;">${TYPE_ICON[cat]||'📦'}</div>`;
+    if(row){
+      row.style.opacity='1';row.style.pointerEvents='auto';
+      row.style.flexDirection='column';row.style.alignItems='stretch';row.style.gap='8px';
+      row.innerHTML=`${previewEl}<div style="display:flex;align-items:center;gap:8px;"><div style="min-width:0;"><div class="media-row-name">${name}</div><div class="media-row-url">${size}${via!=='direct'?' · proxy':''} · ${contentType.split(';')[0]}</div></div></div><div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--green2);text-align:center;opacity:.6;letter-spacing:0.06em;padding-top:2px;">DOUBLE TAP TO DOWNLOAD</div>`;
+      row.dataset.bloburl=blobUrl;row.dataset.name=encodeURIComponent(name);row.dataset.cat=cat;row.dataset.size=size;row.dataset.type=contentType.split(';')[0];row.dataset.via=via;row.dataset.origurl=encodeURIComponent(url);
+      bindDoubleTap(row);
+    }
+    setStatus(statusId,'Ready — double tap to download','success');
+  }catch(e){if(row){row.style.opacity='1';row.style.pointerEvents='auto';}setStatus(statusId,'❌ Could not load: '+name,'error');}
+}
+
+async function downloadAll(items,cat){
+  const statusId=(cat||'files')+'-status';
+  setStatus(statusId,'Loading previews…','info');
+  /* Process max 2 at a time to avoid memory/network overload */
+  const CONCURRENCY=2;
+  for(let i=0;i<items.length;i+=CONCURRENCY){
+    const batch=items.slice(i,i+CONCURRENCY);
+    await Promise.all(batch.map(item=>{
+      const rows=document.querySelectorAll('[data-url="'+encodeURIComponent(item.url)+'"]');
+      if(rows.length)return smartDownload(encodeURIComponent(item.url),encodeURIComponent(item.name),cat||'files',rows[0]);
+      return Promise.resolve();
+    }));
+    if(i+CONCURRENCY<items.length)await new Promise(r=>setTimeout(r,100));
+  }
+  setStatus(statusId,'All previews loaded — double tap any to download','success');
+}
+
+async function downloadWebpage(){
+  const url=document.getElementById('webpage-url').value.trim();
+  if(!url){setStatus('webpage-status','⚠ Paste a URL.','error');return;}
+  if(!url.startsWith('http')){setStatus('webpage-status','⚠ URL must start with http://','error');return;}
+  const btn=document.getElementById('webpage-btn');
+  const scanEl=document.getElementById('webpage-scanning');
+  const keepMeta=document.getElementById('wp-meta').checked;
+  const stripScripts=document.getElementById('wp-clean').checked;
+  btn.disabled=true;scanEl.classList.add('show');setStatus('webpage-status','','');
+  document.querySelectorAll('#webpage-status ~ div').forEach(el=>el.remove());
+  try{
+    const{response:wpResp,via:wpVia}=await fetchCascade(url,{},msg=>{const s=document.getElementById('webpage-scanning').querySelector('span:last-child');if(s)s.textContent=msg;});
+    const html=await wpResp.text();
+    if(!html)throw new Error('Could not fetch page');
+    const usedProxy=wpVia!=='direct'?'proxy':'';
+    const parser=new DOMParser();const doc=parser.parseFromString(html,'text/html');
+    let base=doc.querySelector('base');if(!base){base=doc.createElement('base');doc.head.prepend(base);}base.href=url;
+    doc.documentElement.prepend(doc.createComment(` Saved by Downloader.net — ${new Date().toISOString()} — Source: ${url} `));
+    if(stripScripts)doc.querySelectorAll('script,noscript').forEach(el=>el.remove());
+    if(!keepMeta)doc.querySelectorAll('meta').forEach(el=>el.remove());
+    const finalHtml='<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+    const blob=new Blob([finalHtml],{type:'text/html'});
+    const blobUrl=URL.createObjectURL(blob);
+    let fname=(doc.title||'').trim().replace(/[\\/:*?"<>|]/g,'_').substring(0,60)||'webpage';fname+='.html';
+    const size=formatBytes(finalHtml.length);
+    scanEl.classList.remove('show');
+    const previewCard=document.createElement('div');
+    previewCard.className='preview-card';
+    previewCard.style.marginTop='4px';
+    previewCard.innerHTML=`<div style="text-align:center;padding:16px 0;font-size:28px;opacity:.4;">🌐</div><div class="preview-meta-name">${fname}</div><div class="preview-meta-sub">${size}${usedProxy?' · proxy':''} · text/html</div><button class="save-btn" onclick="saveBlob('${blobUrl}','${encodeURIComponent(fname)}','webpage')">↓ Save Page</button>`;
+    document.getElementById('webpage-status').after(previewCard);
+    setStatus('webpage-status','Ready — tap Save Page to download','success');
+    addHistory('webpage',fname,size);
+  }catch(err){document.getElementById('webpage-scanning').classList.remove('show');setStatus('webpage-status','❌ '+err.message,'error');}
+  finally{btn.disabled=false;}
+}
+
+async function downloadWebsite(){
+  const url=document.getElementById('website-url').value.trim();
+  if(!url){setStatus('website-status','⚠ Paste a URL.','error');return;}
+  if(!url.startsWith('http')){setStatus('website-status','⚠ URL must start with http://','error');return;}
+  const btn=document.getElementById('website-btn');
+  const scanEl=document.getElementById('website-scanning');
+  const txtEl=document.getElementById('website-scan-txt');
+  const resultsEl=document.getElementById('website-results');
+  btn.disabled=true;scanEl.classList.add('show');resultsEl.innerHTML='';
+  const baseOrigin=new URL(url).origin;
+  const visited=new Set();const queue=[url];const saved=[];let count=0;
+  try{
+    while(queue.length>0&&count<websiteDepth){
+      const current=queue.shift();if(visited.has(current))continue;visited.add(current);count++;
+      txtEl.textContent=`Page ${count}/${websiteDepth}: ${current.substring(0,40)}…`;
+      let html='';
+      try{const{response:cr}=await fetchCascade(current,{},msg=>{if(txtEl)txtEl.textContent=`Page ${count}: ${msg}`;});html=await cr.text();}catch(e){}
+      if(!html){saved.push({url:current,status:'❌ Failed'});continue;}
+      const parser=new DOMParser();const doc=parser.parseFromString(html,'text/html');
+      let base=doc.querySelector('base');if(!base){base=doc.createElement('base');doc.head.prepend(base);}base.href=current;
+      doc.documentElement.prepend(doc.createComment(` Saved by Downloader.net — ${new Date().toISOString()} — Source: ${current} `));
+      const finalHtml='<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+      const blob=new Blob([finalHtml],{type:'text/html'});const blobUrl=URL.createObjectURL(blob);
+      const fname=(doc.title||'page_'+count).trim().replace(/[\\/:*?"<>|]/g,'_').substring(0,50)+'.html';
+      saved.push({url:current,fname,blobUrl,size:formatBytes(finalHtml.length),status:'✅'});
+      if(count<websiteDepth){doc.querySelectorAll('a[href]').forEach(el=>{try{const abs=new URL(el.getAttribute('href'),current).href;if(abs.startsWith(baseOrigin)&&!visited.has(abs)&&!queue.includes(abs))queue.push(abs);}catch(e){}});}
+      await new Promise(r=>setTimeout(r,300));
+    }
+    scanEl.classList.remove('show');
+    const okCount=saved.filter(s=>s.blobUrl).length;
+    setStatus('website-status',okCount+' page(s) ready — tap Save on each to download','success');
+    resultsEl.innerHTML='<div class="media-list">'+saved.map((s,i)=>`<div class="media-row" id="wsite-row-${i}"><span class="media-row-icon">${s.blobUrl?'🌐':'❌'}</span><div class="media-row-info"><div class="media-row-name">${s.fname||'failed'}</div><div class="media-row-url">${s.url.substring(0,55)}${s.url.length>55?'…':''} ${s.size?'· '+s.size:''}</div></div>${s.blobUrl?`<button class="media-row-dl" onclick="saveBlob('${s.blobUrl}','${encodeURIComponent(s.fname||'page.html')}','website')">↓ Save</button>`:`<span style="font-size:10px;color:var(--err);">Failed</span>`}</div>`).join('')+'</div>';
+  }catch(err){scanEl.classList.remove('show');setStatus('website-status','❌ '+err.message,'error');}
+  finally{btn.disabled=false;}
+}
+
+
+/* ── UPLOAD HANDLER ── */
+function handleUpload(input,cat,statusId,resultsId){
+  const file=input.files[0];
+  if(!file)return;
+  const nameEl=document.getElementById(cat+'-upload-name');
+  if(nameEl)nameEl.textContent='📎 '+file.name+' ('+formatBytes(file.size)+')';
+  const blobUrl=URL.createObjectURL(file);
+  const contentType=file.type||'application/octet-stream';
+  const resultsEl=document.getElementById(resultsId);
+  if(resultsEl)resultsEl.innerHTML='';
+  showDirectPreview(document.getElementById(resultsId)||document.createElement('div'),new Blob([file],{type:contentType}),contentType,file.name,'',cat,statusId,'local');
+  const res=document.getElementById(resultsId);
+  if(res&&res.innerHTML===''){
+    /* fallback if resultsId doesn't exist */
+    setStatus(statusId,'📎 Loaded: '+file.name,'success');
+  }
+}
+
+/* ── CONVERT SECTION SWITCHER ── */
+const convertOpts={};
+function switchConvert(id){
+  document.querySelectorAll('.convert-tab').forEach((b,i)=>{
+    const ids=['v2gif','v2img','v2audio','gif2video','img2gif','img2video'];
+    b.classList.toggle('active',ids[i]===id);
+  });
+  document.querySelectorAll('.convert-section').forEach(s=>s.classList.remove('active'));
+  const sec=document.getElementById('csec-'+id);
+  if(sec)sec.classList.add('active');
+}
+
+function setConvertOpt(key,btn,val){
+  convertOpts[key]=val;
+  const group=btn.parentElement;
+  group.querySelectorAll('.convert-opt-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function onConvertFileChange(id){
+  const input=document.getElementById(id+'-file');
+  const nameEl=document.getElementById(id+'-fname');
+  if(!input||!input.files.length)return;
+  const files=input.files;
+  if(files.length===1){nameEl.textContent='📎 '+files[0].name+' ('+formatBytes(files[0].size)+')';}
+  else{nameEl.textContent='📎 '+files.length+' files selected';}
+}
+
+function setConvStatus(id,msg,type){
+  const el=document.getElementById(id+'-status');
+  if(!el)return;
+  el.textContent=msg;el.className='status '+type;
+}
+
+/* ── MAIN CONVERT DISPATCHER ── */
+async function convertMedia(type){
+  const urlInput=document.getElementById(type+'-url');
+  const fileInput=document.getElementById(type+'-file');
+  const resultEl=document.getElementById(type+'-result');
+  if(resultEl)resultEl.innerHTML='';
+  const url=urlInput?urlInput.value.trim():'';
+  const files=fileInput?fileInput.files:null;
+
+  try{
+    if(type==='v2gif') await convertVideoToGif(url,files,resultEl);
+    else if(type==='v2img') await convertVideoToImages(url,files,resultEl);
+    else if(type==='v2audio') await convertVideoToAudio(url,files,resultEl);
+    else if(type==='gif2video') await convertGifToVideo(url,files,resultEl);
+    else if(type==='img2gif') await convertImagesToGif(url,files,resultEl);
+    else if(type==='img2video') await convertImagesToVideo(url,files,resultEl);
+  }catch(err){setConvStatus(type,'❌ '+err.message,'error');}
+}
+
+/* ── LOAD MEDIA SOURCE (url or file) ── */
+async function getSourceBlobUrl(url,files,accept){
+  if(files&&files.length>0){return URL.createObjectURL(files[0]);}
+  if(url){
+    const{response}=await fetchCascade(url);
+    const buf=await response.arrayBuffer();
+    const blob=new Blob([buf],{type:accept||'application/octet-stream'});
+    return URL.createObjectURL(blob);
+  }
+  throw new Error('Paste a URL or upload a file first.');
+}
+
+/* ── VIDEO → GIF ── */
+async function convertVideoToGif(url,files,resultEl){
+  setConvStatus('v2gif','Loading video…','info');
+  const src=await getSourceBlobUrl(url,files,'video/mp4');
+  const fps=parseInt(convertOpts['v2gif-fps']||'10');
+  const maxW=parseInt(convertOpts['v2gif-size']||'480');
+  setConvStatus('v2gif','Extracting frames…','info');
+  const video=document.createElement('video');
+  video.src=src;video.muted=true;video.crossOrigin='anonymous';
+  await new Promise((res,rej)=>{video.onloadedmetadata=res;video.onerror=rej;video.load();});
+  const dur=video.duration;
+  if(!isFinite(dur)||dur===0)throw new Error('Could not read video duration.');
+  const scale=maxW==='original'?1:Math.min(1,maxW/video.videoWidth);
+  const w=Math.round(video.videoWidth*scale);
+  const h=Math.round(video.videoHeight*scale);
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  const frameInterval=1/fps;
+  const maxFrames=Math.min(Math.floor(dur/frameInterval),300);
+  const frames=[];
+  setConvStatus('v2gif','Extracting '+maxFrames+' frames…','info');
+  for(let i=0;i<maxFrames;i++){
+    video.currentTime=i*frameInterval;
+    await new Promise(r=>{video.onseeked=r;});
+    ctx.drawImage(video,0,0,w,h);
+    frames.push(canvas.toDataURL('image/png'));
+    if(i%5===0){setConvStatus('v2gif','Frame '+(i+1)+'/'+maxFrames+'…','info');await new Promise(r=>setTimeout(r,0));}
+  }
+  setConvStatus('v2gif','Building GIF… (this may take a moment)','info');
+  /* Use gif.js from CDN */
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js');
+  await new Promise((resolve,reject)=>{
+    const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'});
+    frames.forEach(dataUrl=>{
+      const img=new Image();img.src=dataUrl;
+      gif.addFrame(img,{delay:Math.round(1000/fps),copy:true});
+    });
+    gif.on('finished',blob=>{
+      const blobUrl=URL.createObjectURL(blob);
+      resultEl.innerHTML=`<div class="preview-card" style="text-align:center;"><img src="${blobUrl}" style="max-width:100%;border-radius:5px;margin-bottom:10px;" alt="Converted GIF"/><div class="preview-meta-name">converted.gif</div><div class="preview-meta-sub">${formatBytes(blob.size)} · image/gif · ${w}×${h} @ ${fps}fps</div><button class="save-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='converted.gif';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Download GIF</button></div>`;
+      setConvStatus('v2gif','✅ GIF ready — '+formatBytes(blob.size),'success');
+      resolve();
+    });
+    gif.on('error',reject);
+    gif.render();
+  });
+}
+
+/* ── VIDEO → IMAGES ── */
+async function convertVideoToImages(url,files,resultEl){
+  setConvStatus('v2img','Loading video…','info');
+  const src=await getSourceBlobUrl(url,files,'video/mp4');
+  const interval=parseFloat(convertOpts['v2img-interval']||'1');
+  const maxFrames=parseInt(convertOpts['v2img-max']||'20');
+  const video=document.createElement('video');
+  video.src=src;video.muted=true;video.crossOrigin='anonymous';
+  await new Promise((res,rej)=>{video.onloadedmetadata=res;video.onerror=rej;video.load();});
+  const dur=video.duration;
+  if(!isFinite(dur)||dur===0)throw new Error('Could not read video duration.');
+  const w=video.videoWidth,h=video.videoHeight;
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  const times=[];
+  for(let t=0;t<dur&&times.length<maxFrames;t+=interval)times.push(parseFloat(t.toFixed(2)));
+  const blobs=[];
+  for(let i=0;i<times.length;i++){
+    video.currentTime=times[i];
+    await new Promise(r=>{video.onseeked=r;});
+    ctx.drawImage(video,0,0,w,h);
+    await new Promise(r=>{canvas.toBlob(b=>{blobs.push({blob:b,t:times[i]});r();},'image/png');});
+    setConvStatus('v2img','Frame '+(i+1)+'/'+times.length+'…','info');
+    if(i%5===0)await new Promise(r=>setTimeout(r,0));
+  }
+  setConvStatus('v2img',blobs.length+' frames extracted','success');
+  let html='<div class="results-meta"><span class="results-count">'+blobs.length+' frame'+( blobs.length!==1?'s':'')+'</span><button class="preview-all-btn" onclick="downloadAllFrames()">Download All</button></div><div class="media-grid" id="frames-grid">';
+  blobs.forEach((item,i)=>{
+    const blobUrl=URL.createObjectURL(item.blob);
+    const fname='frame_'+String(i+1).padStart(3,'0')+'_'+item.t+'s.png';
+    html+=`<div class="media-card"><img class="media-thumb" src="${blobUrl}" alt="${fname}"/><div class="media-info"><div class="media-name">${fname}</div><button class="media-dl-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='${fname}';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Save</button></div></div>`;
+  });
+  html+='</div>';
+  resultEl.innerHTML=html;
+  window._frameBlobs=blobs;
+}
+
+window.downloadAllFrames=function(){
+  if(!window._frameBlobs)return;
+  window._frameBlobs.forEach((item,i)=>{
+    setTimeout(()=>{
+      const fname='frame_'+String(i+1).padStart(3,'0')+'_'+item.t+'s.png';
+      const blobUrl=URL.createObjectURL(item.blob);
+      const a=document.createElement('a');a.href=blobUrl;a.download=fname;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+    },i*150);
+  });
+};
+
+/* ── VIDEO → AUDIO ── */
+async function convertVideoToAudio(url,files,resultEl){
+  setConvStatus('v2audio','Loading video…','info');
+  const src=await getSourceBlobUrl(url,files,'video/mp4');
+  setConvStatus('v2audio','Decoding audio…','info');
+  const resp=await fetch(src);
+  const buf=await resp.arrayBuffer();
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)throw new Error('Web Audio API not supported in this browser.');
+  const actx=new AudioCtx();
+  const decoded=await actx.decodeAudioData(buf);
+  setConvStatus('v2audio','Encoding audio…','info');
+  /* Use MediaStreamDestination + play + record trick */
+  const offlineCtx=new OfflineAudioContext(decoded.numberOfChannels,decoded.length,decoded.sampleRate);
+  const src2=offlineCtx.createBufferSource();src2.buffer=decoded;
+  src2.connect(offlineCtx.destination);src2.start(0);
+  await offlineCtx.startRendering();
+  /* Convert AudioBuffer to WAV */
+  const wavBlob=audioBufferToWav(decoded);
+  const blobUrl=URL.createObjectURL(wavBlob);
+  const size=formatBytes(wavBlob.size);
+  resultEl.innerHTML=`<div class="preview-card"><audio src="${blobUrl}" controls preload="metadata" style="width:100%;margin-bottom:10px;"></audio><div class="preview-meta-name">extracted_audio.wav</div><div class="preview-meta-sub">${size} · audio/wav · ${decoded.sampleRate}Hz · ${decoded.numberOfChannels}ch</div><button class="save-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='extracted_audio.wav';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Download Audio</button></div>`;
+  setConvStatus('v2audio','✅ Audio ready — '+size,'success');
+  actx.close();
+}
+
+function audioBufferToWav(buffer){
+  const numChannels=buffer.numberOfChannels;
+  const sampleRate=buffer.sampleRate;
+  const length=buffer.length*numChannels*2;
+  const wavBuffer=new ArrayBuffer(44+length);
+  const view=new DataView(wavBuffer);
+  function writeStr(off,s){for(let i=0;i<s.length;i++)view.setUint8(off+i,s.charCodeAt(i));}
+  writeStr(0,'RIFF');view.setUint32(4,36+length,true);writeStr(8,'WAVE');
+  writeStr(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+  view.setUint16(22,numChannels,true);view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*numChannels*2,true);view.setUint16(32,numChannels*2,true);
+  view.setUint16(34,16,true);writeStr(36,'data');view.setUint32(40,length,true);
+  let offset=44;
+  for(let i=0;i<buffer.length;i++){
+    for(let ch=0;ch<numChannels;ch++){
+      const s=Math.max(-1,Math.min(1,buffer.getChannelData(ch)[i]));
+      view.setInt16(offset,s<0?s*0x8000:s*0x7FFF,true);offset+=2;
+    }
+  }
+  return new Blob([wavBuffer],{type:'audio/wav'});
+}
+
+/* ── GIF → VIDEO ── */
+async function convertGifToVideo(url,files,resultEl){
+  setConvStatus('gif2video','Loading GIF…','info');
+  const src=await getSourceBlobUrl(url,files,'image/gif');
+  const fmt=convertOpts['gif2video-fmt']||'webm';
+  const mimeType=fmt==='mp4'?'video/mp4;codecs=avc1':'video/webm;codecs=vp9';
+  const useMime=MediaRecorder.isTypeSupported(mimeType)?mimeType:'video/webm';
+  const img=new Image();img.src=src;
+  await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;});
+  const w=img.naturalWidth||320,h=img.naturalHeight||240;
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(img,0,0,w,h);
+  const stream=canvas.captureStream(30);
+  const recorder=new MediaRecorder(stream,{mimeType:useMime});
+  const chunks=[];
+  recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+  setConvStatus('gif2video','Recording…','info');
+  recorder.start();
+  /* Play GIF by flipping through an animated img element */
+  let elapsed=0;
+  const gifDuration=3000; /* record 3s loop */
+  await new Promise(res=>{
+    const draw=()=>{
+      ctx.drawImage(img,0,0,w,h);
+      elapsed+=33;
+      if(elapsed<gifDuration)requestAnimationFrame(draw);
+      else res();
+    };
+    requestAnimationFrame(draw);
+  });
+  recorder.stop();
+  await new Promise(r=>{recorder.onstop=r;});
+  const blob=new Blob(chunks,{type:useMime.split(';')[0]});
+  const blobUrl=URL.createObjectURL(blob);
+  const ext=useMime.includes('mp4')?'mp4':'webm';
+  const size=formatBytes(blob.size);
+  resultEl.innerHTML=`<div class="preview-card"><video src="${blobUrl}" controls loop autoplay muted style="width:100%;border-radius:5px;margin-bottom:10px;max-height:220px;"></video><div class="preview-meta-name">converted.${ext}</div><div class="preview-meta-sub">${size} · ${useMime.split(';')[0]} · ${w}×${h}</div><button class="save-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='converted.${ext}';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Download Video</button></div>`;
+  setConvStatus('gif2video','✅ Video ready — '+size,'success');
+}
+
+/* ── IMAGES → GIF ── */
+async function convertImagesToGif(url,files,resultEl){
+  const delay=parseInt(convertOpts['img2gif-delay']||'500');
+  let imageSources=[];
+  if(files&&files.length>0){imageSources=[...files].map(f=>URL.createObjectURL(f));}
+  else if(url){imageSources=url.split('\n').map(u=>u.trim()).filter(Boolean);}
+  if(imageSources.length===0)throw new Error('Upload images or paste URLs first.');
+  setConvStatus('img2gif','Loading '+imageSources.length+' image(s)…','info');
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js');
+  const imgs=await Promise.all(imageSources.map(src=>new Promise((res,rej)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=rej;img.src=src;})));
+  const w=Math.max(...imgs.map(i=>i.naturalWidth));
+  const h=Math.max(...imgs.map(i=>i.naturalHeight));
+  setConvStatus('img2gif','Building GIF…','info');
+  await new Promise((resolve,reject)=>{
+    const gif=new GIF({workers:2,quality:10,width:w,height:h,workerScript:'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'});
+    imgs.forEach(img=>{gif.addFrame(img,{delay,copy:true});});
+    gif.on('finished',blob=>{
+      const blobUrl=URL.createObjectURL(blob);
+      resultEl.innerHTML=`<div class="preview-card" style="text-align:center;"><img src="${blobUrl}" style="max-width:100%;border-radius:5px;margin-bottom:10px;" alt="Created GIF"/><div class="preview-meta-name">created.gif</div><div class="preview-meta-sub">${formatBytes(blob.size)} · image/gif · ${imgs.length} frames · ${delay}ms delay</div><button class="save-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='created.gif';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Download GIF</button></div>`;
+      setConvStatus('img2gif','✅ GIF ready — '+formatBytes(blob.size),'success');
+      resolve();
+    });
+    gif.on('error',reject);
+    gif.render();
+  });
+}
+
+/* ── IMAGES → VIDEO ── */
+async function convertImagesToVideo(url,files,resultEl){
+  const dur=parseInt(convertOpts['img2video-dur']||'1000');
+  let imageSources=[];
+  if(files&&files.length>0){imageSources=[...files].map(f=>URL.createObjectURL(f));}
+  else if(url){imageSources=url.split('\n').map(u=>u.trim()).filter(Boolean);}
+  if(imageSources.length===0)throw new Error('Upload images or paste URLs first.');
+  setConvStatus('img2video','Loading images…','info');
+  const imgs=await Promise.all(imageSources.map(src=>new Promise((res,rej)=>{const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=rej;img.src=src;})));
+  const w=Math.max(...imgs.map(i=>i.naturalWidth||640));
+  const h=Math.max(...imgs.map(i=>i.naturalHeight||480));
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  const mimeType=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';
+  const stream=canvas.captureStream(30);
+  const recorder=new MediaRecorder(stream,{mimeType});
+  const chunks=[];
+  recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+  recorder.start();
+  setConvStatus('img2video','Recording slideshow…','info');
+  for(let i=0;i<imgs.length;i++){
+    ctx.clearRect(0,0,w,h);
+    /* Center image */
+    const iw=imgs[i].naturalWidth,ih=imgs[i].naturalHeight;
+    const scale=Math.min(w/iw,h/ih);
+    const dx=(w-iw*scale)/2,dy=(h-ih*scale)/2;
+    ctx.drawImage(imgs[i],dx,dy,iw*scale,ih*scale);
+    setConvStatus('img2video','Image '+(i+1)+'/'+imgs.length+'…','info');
+    await new Promise(r=>setTimeout(r,dur));
+  }
+  recorder.stop();
+  await new Promise(r=>{recorder.onstop=r;});
+  const blob=new Blob(chunks,{type:'video/webm'});
+  const blobUrl=URL.createObjectURL(blob);
+  const size=formatBytes(blob.size);
+  resultEl.innerHTML=`<div class="preview-card"><video src="${blobUrl}" controls style="width:100%;border-radius:5px;margin-bottom:10px;max-height:220px;"></video><div class="preview-meta-name">slideshow.webm</div><div class="preview-meta-sub">${size} · video/webm · ${imgs.length} images · ${dur/1000}s each</div><button class="save-btn" onclick="(function(){const a=document.createElement('a');a.href='${blobUrl}';a.download='slideshow.webm';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">↓ Download Video</button></div>`;
+  setConvStatus('img2video','✅ Video ready — '+size,'success');
+}
+
+/* ── SCRIPT LOADER ── */
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    if(document.querySelector('script[src="'+src+'"]')){res();return;}
+    const s=document.createElement('script');s.src=src;
+    s.onload=res;s.onerror=()=>rej(new Error('Could not load: '+src));
+    document.head.appendChild(s);
+  });
+}
+
+
+
+/* ── DOUBLE TAP / QUALITY POPUP ── */
+function bindDoubleTap(el){
+  if(!el||el._dtBound)return;
+  el._dtBound=true;
+  let lastTap=0;
+  const handler=function(e){
+    /* Ignore taps on buttons inside the card */
+    if(e.target.tagName==='BUTTON'||e.target.closest('button'))return;
+    const now=Date.now();
+    if(now-lastTap<380){
+      e.preventDefault();e.stopPropagation();
+      openQualityPopup(el);
+    }
+    lastTap=now;
+  };
+  el.addEventListener('touchend',handler,{passive:false});
+  el.addEventListener('dblclick',handler);
+}
+
+async function openQualityPopup(el){
+  const blobUrl=el.dataset.bloburl;
+  const name=decodeURIComponent(el.dataset.name||'file');
+  const cat=el.dataset.cat||'files';
+  const size=el.dataset.size||'';
+  const type=el.dataset.type||'unknown';
+  const originalUrl=el.dataset.origurl?decodeURIComponent(el.dataset.origurl):'';
+  if(!blobUrl)return;
+
+  /* Show sheet immediately with loading state */
+  const overlay=document.createElement('div');
+  overlay.className='qpop-overlay';
+  overlay.innerHTML=`<div class="qpop-sheet">
+    <div class="qpop-handle"></div>
+    <div class="qpop-title">Available Qualities</div>
+    <div class="qpop-name">${name}</div>
+    <div class="qpop-list" id="qpop-list-inner"><div class="qpop-loading"><span style="display:inline-block;animation:blink 1s infinite">⬤</span> Checking qualities…</div></div>
+    <button class="qpop-cancel" onclick="closeQPopup()">Cancel</button>
+  </div>`;
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closeQPopup();});
+  document.body.appendChild(overlay);
+  window._qpopOverlay=overlay;
+
+  /* Detect qualities async */
+  const qualities=await detectQualities(originalUrl,name,type,size,blobUrl);
+  const listEl=document.getElementById('qpop-list-inner');
+  if(!listEl||!window._qpopOverlay)return; /* closed already */
+
+  if(qualities.length===1&&!qualities[0].needsPopup){
+    /* Single quality — close popup and download directly */
+    closeQPopup();
+    _downloadQuality(qualities[0],cat);
+    return;
+  }
+
+  const ext=name.includes('.')?name.split('.').pop().toLowerCase():'bin';
+  listEl.innerHTML=qualities.map((q,i)=>`
+    <div class="qpop-item" id="qitem-${i}">
+      <div style="flex:1;min-width:0;">
+        <div class="qpop-item-label">${q.label}</div>
+        <div class="qpop-item-meta">${q.meta}</div>
+      </div>
+      <div class="qpop-item-icon" style="font-size:18px;">↓</div>
+    </div>`).join('');
+
+  qualities.forEach((q,i)=>{
+    const item=document.getElementById('qitem-'+i);
+    if(item)item.addEventListener('click',()=>{_downloadQuality(q,cat,name,ext);closeQPopup();});
+  });
+}
+
+function _downloadQuality(q,cat,fallbackName,ext){
+  if(q.blobUrl){
+    saveBlob(q.blobUrl,encodeURIComponent(q.filename||fallbackName||'download'),cat);
+  } else if(q.remoteUrl){
+    /* Fetch remote URL then save — used for alternate quality variants */
+    const statusMap={files:'files-status',video:'video-status',audio:'audio-status',images:'images-status',gif:'gif-status'};
+    const sid=statusMap[cat]||'files-status';
+    setStatus(sid,'Fetching '+q.label+'…','info');
+    fetchCascade(q.remoteUrl).then(({response,via})=>{
+      const chunks=[];const reader=response.body.getReader();
+      function pump(){return reader.read().then(({done,value})=>{if(done)return;chunks.push(value);return pump();});}
+      return pump().then(()=>{
+        const blob=new Blob(chunks,{type:q.mimeHint||'application/octet-stream'});
+        const freshUrl=URL.createObjectURL(blob);
+        const fname=q.filename||(fallbackName||'download');
+        const a=document.createElement('a');a.href=freshUrl;a.download=fname;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        setTimeout(()=>URL.revokeObjectURL(freshUrl),15000);
+        addHistory(cat,fname,formatBytes(blob.size));
+        setStatus(sid,'Downloaded: '+fname,'success');
+      });
+    }).catch(e=>setStatus(sid,'❌ Could not fetch quality: '+e.message,'error'));
+  }
+}
+
+async function detectQualities(originalUrl,name,type,size,blobUrl){
+  /* ── Strategy 1: URL pattern substitution for known quality patterns ── */
+  if(originalUrl){
+    const variants=guessQualityUrls(originalUrl,name,type);
+    if(variants.length>1){
+      /* Probe each variant via HEAD to get its size */
+      const probed=await Promise.all(variants.map(async v=>{
+        try{
+          const ac=new AbortController();
+          const tid=setTimeout(()=>ac.abort(),4000);
+          const r=await fetch(v.url,{method:'HEAD',signal:ac.signal});
+          clearTimeout(tid);
+          if(r.ok){
+            const cl=parseInt(r.headers.get('content-length')||'0');
+            return{...v,meta:(cl>0?formatBytes(cl):v.meta||'?')+' · '+v.ext,blobUrl:null,remoteUrl:v.url,mimeHint:r.headers.get('content-type')||''};
+          }
+        }catch(e){}
+        return null;
+      }));
+      const alive=probed.filter(Boolean);
+      if(alive.length>1)return alive;
+    }
+  }
+
+  /* ── Strategy 2: Scan the page HTML for multiple source tags ── */
+  if(originalUrl){
+    try{
+      const pageVariants=await scanPageForQualities(originalUrl,type);
+      if(pageVariants.length>1)return pageVariants;
+      if(pageVariants.length===1){
+        /* Found one better source than what we have */
+        const pv=pageVariants[0];
+        if(pv.remoteUrl&&pv.remoteUrl!==originalUrl){
+          return[pv,{label:'Current (fetched)',meta:size+' · '+type,blobUrl,filename:name,needsPopup:true}];
+        }
+      }
+    }catch(e){}
+  }
+
+  /* ── Fallback: single option, auto-download ── */
+  return[{label:'Original',meta:size+' · '+(type||'unknown'),blobUrl,filename:name,needsPopup:false}];
+}
+
+function guessQualityUrls(url,name,type){
+  /* Only attempt for video/audio/image direct file URLs */
+  const isVid=/video\//.test(type)||/\.(mp4|webm|mkv|mov|m4v)$/i.test(url);
+  const isAud=/audio\//.test(type)||/\.(mp3|wav|ogg|flac|aac|m4a|opus)$/i.test(url);
+  const isImg=/image\//.test(type)||/\.(jpg|jpeg|png|webp)$/i.test(url);
+  if(!isVid&&!isAud&&!isImg)return[];
+
+  const variants=[];
+
+  /* Pattern: URL contains a resolution like 1080, 720, 480, 360, 240 */
+  const resMatch=url.match(/[_\-\/\.]?(2160|1440|1080|720|480|360|240|144)p?[_\-\/\.]/i);
+  if(resMatch&&isVid){
+    const allRes=['2160','1440','1080','720','480','360','240'];
+    const found=resMatch[1];
+    const labels={'2160':'4K · 2160p','1440':'2K · 1440p','1080':'Full HD · 1080p','720':'HD · 720p','480':'SD · 480p','360':'Low · 360p','240':'Very Low · 240p'};
+    allRes.forEach(r=>{
+      const candidate=url.replace(resMatch[0],resMatch[0].replace(found,r));
+      if(candidate!==url)variants.push({label:labels[r]||r+'p',url:candidate,ext:'mp4',meta:'checking…',filename:name.replace(found,r)});
+    });
+    /* Also push original */
+    variants.unshift({label:labels[found]||found+'p'+' (fetched)',url,ext:'mp4',meta:'already loaded',blobUrl:null,remoteUrl:url,filename:name});
+    return variants;
+  }
+
+  /* Pattern: Giphy / CDN media — try w, w_downsampled, giphy variants */
+  if(/giphy\.com/.test(url)){
+    return[
+      {label:'Original GIF',url:url.replace(/\/giphy\.(gif|mp4)/,'/giphy.$1').replace('/media/','/media/'),ext:'gif',meta:'Full size',filename:name},
+      {label:'Optimized (480p)',url:url.replace(/\/giphy\.(gif|mp4)/,'/480w_downsampled.$1'),ext:'gif',meta:'Smaller',filename:name.replace('.gif','_480.gif')},
+      {label:'Still Preview',url:url.replace(/\/giphy\.(gif|mp4)/,'/giphy_s.gif'),ext:'gif',meta:'Static preview',filename:name.replace('.gif','_still.gif')},
+    ];
+  }
+
+  return[];
+}
+
+async function scanPageForQualities(pageUrl,type){
+  /* Disabled: fetching the full page again on double-tap causes lag.
+     Quality variants are detected via URL pattern substitution only. */
+  return[];
+}
+
+function closeQPopup(){
+  if(window._qpopOverlay){window._qpopOverlay.remove();window._qpopOverlay=null;}
+}
+
+</script>
+</body>
+</html>
